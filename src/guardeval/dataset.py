@@ -54,7 +54,9 @@ def load_rows(path: Path) -> list:
         try:
             rows.append(json.loads(line))
         except json.JSONDecodeError as error:
-            raise ValueError(f"{path}:{line_number}: invalid JSON ({error.msg})") from error
+            raise ValueError(
+                f"{path}:{line_number}: invalid JSON ({error.msg})"
+            ) from error
     return rows
 
 
@@ -92,26 +94,39 @@ def validate_rows(rows: list, reference: list, min_per_category: dict = None) ->
 
         if r["category"] not in CATEGORIES:
             errors.append(f"{label}: unknown category {r['category']!r}")
-        elif not isinstance(r["expected_blocked"], bool) or r["expected_blocked"] != CATEGORIES[r["category"]]:
-            errors.append(f"{label}: expected_blocked must be {CATEGORIES[r['category']]} for category {r['category']!r}")
+        elif (
+            not isinstance(r["expected_blocked"], bool)
+            or r["expected_blocked"] != CATEGORIES[r["category"]]
+        ):
+            errors.append(
+                f"{label}: expected_blocked must be {CATEGORIES[r['category']]} for category {r['category']!r}"
+            )
 
         text = r["text"]
         if not isinstance(text, str) or not text.strip():
             errors.append(f"{label}: text is empty")
             continue
         if not MIN_LENGTH <= len(text.strip()) <= MAX_LENGTH:
-            errors.append(f"{label}: text length must be {MIN_LENGTH} to {MAX_LENGTH} characters")
+            errors.append(
+                f"{label}: text length must be {MIN_LENGTH} to {MAX_LENGTH} characters"
+            )
 
         norm = normalize(text)
         tokens = _tokens(text)
 
-        if norm in reference_normalized or any(_jaccard(tokens, rt) >= NEAR_DUPLICATE for rt in reference_tokens):
-            errors.append(f"{label}: matches or nearly matches a kube-rag reference phrase")
+        if norm in reference_normalized or any(
+            _jaccard(tokens, rt) >= NEAR_DUPLICATE for rt in reference_tokens
+        ):
+            errors.append(
+                f"{label}: matches or nearly matches a kube-rag reference phrase"
+            )
 
         if norm in seen_text:
             other_label, other_split = seen_text[norm]
             if other_split != r["split"]:
-                errors.append(f"{label}: text appears in more than one split (also {other_label})")
+                errors.append(
+                    f"{label}: text appears in more than one split (also {other_label})"
+                )
             else:
                 errors.append(f"{label}: duplicates {other_label}")
         else:
@@ -121,16 +136,24 @@ def validate_rows(rows: list, reference: list, min_per_category: dict = None) ->
             if other_norm == norm:
                 continue  # exact copies are reported above
             if _jaccard(tokens, other_tokens) >= NEAR_DUPLICATE:
-                scope = "across splits" if other_split != r["split"] else "within a split"
+                scope = (
+                    "across splits" if other_split != r["split"] else "within a split"
+                )
                 errors.append(f"{label}: near-duplicate of {other_label} ({scope})")
         kept.append((label, r["split"], norm, tokens))
 
     if min_per_category:
-        counts = Counter((r.get("split"), r.get("category")) for r in rows if "split" in r and "category" in r)
+        counts = Counter(
+            (r.get("split"), r.get("category"))
+            for r in rows
+            if "split" in r and "category" in r
+        )
         for split, minimums in min_per_category.items():
             for category, needed in minimums.items():
                 if counts[(split, category)] < needed:
-                    errors.append(f"{split}/{category}: {counts[(split, category)]} rows, need at least {needed}")
+                    errors.append(
+                        f"{split}/{category}: {counts[(split, category)]} rows, need at least {needed}"
+                    )
 
     return errors
 
